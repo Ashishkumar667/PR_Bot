@@ -2,10 +2,10 @@ import re
 import requests
 from openai import OpenAI
 from flask import Flask, request, jsonify
-
+from PdfToPpt.index import generate_presentation
 # Initialize Flask app
 app = Flask(__name__)
-
+# generate_ppt_endpoint(app)
 # --- Helper Function to Parse Bitbucket URL ---
 def parse_pr_url(url):
     """Extracts workspace, repo_slug, and pr_id from a Bitbucket URL."""
@@ -109,6 +109,32 @@ def describe_endpoint():
     data = request.get_json()
     pr_url = data.get("pr_url")
     return handle_review(pr_url, bb_token, openai_key, "describe")
+
+@app.route("/generate-ppt", methods=["POST"])
+def generate_ppt_endpoint():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "JSON body required"}), 400
+
+        slide_count = data.get("slide_count")
+        summary = data.get("summary")
+
+        if not slide_count or not isinstance(slide_count, int) or slide_count < 1:
+            return jsonify({"error": "Valid slide_count (int > 0) required"}), 400
+
+        if not summary or not isinstance(summary, str) or summary.strip() == "":
+            return jsonify({"error": "Non-empty summary string required"}), 400
+
+        ppt_url = generate_presentation(slide_count, summary)
+
+        return jsonify({
+            "message": "Presentation generated successfully",
+            "presentation_url": ppt_url
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Run app
 if __name__ == "__main__":
